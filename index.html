@@ -96,5 +96,69 @@ document.querySelectorAll(".opt").forEach(function(b){b.addEventListener("click"
 document.getElementById("hm").textContent=b.dataset.m;document.getElementById("ht").textContent=b.dataset.t;document.getElementById("hasil").hidden=false;
 document.getElementById("hasil").scrollIntoView({block:"nearest",behavior:"smooth"})})});
 </script>
+<div id="rn-box" style="max-width:480px;margin:24px auto;padding:16px;font-family:sans-serif">
+  <button id="rn-masuk">Masuk dengan Google</button>
+  <button id="rn-keluar" style="display:none">Keluar</button>
+  <p id="rn-status"></p>
+  <div id="rn-app" style="display:none">
+    <textarea id="rn-teks" maxlength="500" rows="3" style="width:100%" placeholder="Tulis catatan..."></textarea>
+    <button id="rn-simpan">Simpan</button>
+    <ul id="rn-daftar" style="padding-left:18px"></ul>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, serverTimestamp, query, orderBy } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+
+const app = initializeApp({
+  apiKey: "AIzaSyB6icdkRO72Mk-CZ6InxJEEFU3Fv-mm44Q",
+  authDomain: "rainness-fbaa4.firebaseapp.com",
+  projectId: "rainness-fbaa4",
+  storageBucket: "rainness-fbaa4.firebasestorage.app",
+  messagingSenderId: "744508870043",
+  appId: "1:744508870043:web:282e4921175d495c82253e"
+});
+const auth = getAuth(app);
+const db = getFirestore(app);
+const $ = id => document.getElementById(id);
+let user = null;
+
+const koleksi = () => collection(db, "users", user.uid, "catatan");
+
+async function muat() {
+  const s = await getDocs(query(koleksi(), orderBy("dibuat", "desc")));
+  $("rn-daftar").innerHTML = "";
+  s.forEach(d => {
+    const li = document.createElement("li");
+    li.textContent = d.data().teks + " ";
+    const b = document.createElement("button");
+    b.textContent = "Hapus";
+    b.onclick = async () => { await deleteDoc(doc(db, "users", user.uid, "catatan", d.id)); muat(); };
+    li.appendChild(b);
+    $("rn-daftar").appendChild(li);
+  });
+}
+
+onAuthStateChanged(auth, u => {
+  user = u;
+  $("rn-masuk").style.display = u ? "none" : "";
+  $("rn-keluar").style.display = u ? "" : "none";
+  $("rn-app").style.display = u ? "" : "none";
+  $("rn-status").textContent = u ? "Masuk sebagai " + u.email : "Belum masuk";
+  if (u) muat();
+});
+
+$("rn-masuk").onclick = () => signInWithPopup(auth, new GoogleAuthProvider()).catch(e => alert(e.message));
+$("rn-keluar").onclick = () => signOut(auth);
+$("rn-simpan").onclick = async () => {
+  const teks = $("rn-teks").value.trim();
+  if (!teks) return;
+  await addDoc(koleksi(), { teks, dibuat: serverTimestamp() });
+  $("rn-teks").value = "";
+  muat();
+};
+</script>
 </body>
 </html>
